@@ -2,7 +2,6 @@ package foundation.stack.jdbc;
 
 import java.sql.*;
 import java.util.Properties;
-import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,12 +44,9 @@ public class DelegatingDriver implements Driver {
 
         String query = url.substring(PREFIX_LENGTH);
 
-        ServiceLoader<ConnectionLookup> lookups = ServiceLoader.load(ConnectionLookup.class);
-        for (ConnectionLookup lookup : lookups) {
-            String connection = lookup.find(query);
-            if (connection != null) {
-                return connection;
-            }
+        String connection = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
+        if (connection != null) {
+            return connection;
         }
 
         logger.log(Level.WARNING, "Unable to find a connection string to use for delegating URL {0}", url);
