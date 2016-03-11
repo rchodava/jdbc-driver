@@ -77,7 +77,7 @@ public class DelegatingDriver implements Driver {
 
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return logger;
+        return logger.getLogger(DelegatingDriver.class.getPackage().getName());
     }
 
     @Override
