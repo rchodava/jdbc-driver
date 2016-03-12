@@ -26,11 +26,31 @@ public class DockerUtilities {
             String rootPassword, String applicationUserName, String applicationUserPassword) {
         try {
             logger.log(Level.FINER, "Trying to create container {0}", containerName);
+
+            String[] environmentVariables;
+            if (rootPassword != null) {
+                if (applicationUserName != null && applicationUserPassword != null) {
+                    environmentVariables = new String[] {
+                            "MYSQL_ROOT_PASSWORD=" + rootPassword,
+                            "MYSQL_USER=" + applicationUserName,
+                            "MYSQL_PASSWORD=" + applicationUserPassword };
+                } else {
+                    environmentVariables = new String[] { "MYSQL_ROOT_PASSWORD=" + rootPassword };
+                }
+            } else {
+                if (applicationUserName != null && applicationUserPassword != null) {
+                    environmentVariables = new String[] {
+                            "MYSQL_ALLOW_EMPTY_PASSWORD=yes",
+                            "MYSQL_USER=" + applicationUserName,
+                            "MYSQL_PASSWORD=" + applicationUserPassword };
+                } else {
+                    environmentVariables = new String[] { "MYSQL_ALLOW_EMPTY_PASSWORD=yes" };
+                }
+            }
+
             dockerClient.createContainerCmd(imageName + ":" + tag)
                     .withName(containerName)
-                    .withEnv("MYSQL_ROOT_PASSWORD=" + rootPassword,
-                            "MYSQL_USER=" + applicationUserName,
-                            "MYSQL_PASSWORD=" + applicationUserPassword)
+                    .withEnv(environmentVariables)
                     .withExposedPorts(ExposedPort.tcp(sqlPort))
                     .withPortBindings(new PortBinding(new Ports.Binding(sqlPort), ExposedPort.tcp(MYSQL_PORT)))
                     .exec();
@@ -59,7 +79,7 @@ public class DockerUtilities {
     }
 
     public static void pullImageToDockerHost(DockerClient dockerClient, String imageName, String tag) {
-        logger.log(Level.FINER, "Docker host does not have {0} image, getting it now", imageName + ":" + tag);
+        logger.log(Level.FINER, "Docker host does not have {0} image, getting it now (this may take a bit of time)", imageName + ":" + tag);
         PullImageResultCallback callback = new PullImageResultCallback();
 
         dockerClient.pullImageCmd(imageName)

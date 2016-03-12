@@ -44,9 +44,14 @@ public class DelegatingDriver implements Driver {
 
         String query = url.substring(PREFIX_LENGTH);
 
-        String connection = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
-        if (connection != null) {
-            return connection;
+        try {
+            String connection = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
+            if (connection != null) {
+                return connection;
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error occurred looking up connection to delegate {0} to", url);
+            logger.log(Level.FINE, "Error details:", e);
         }
 
         logger.log(Level.WARNING, "Unable to find a connection string to use for delegating URL {0}", url);
