@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
-public class DockerDatabaseServerContainerManager {
+public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceType> {
     private static final String MYSQL_IMAGE_NAME_PROPERTY = "MYSQL_IMAGE_NAME";
     private static final String MYSQL_IMAGE_NAME = "mysql";
 
@@ -65,13 +65,27 @@ public class DockerDatabaseServerContainerManager {
         }
     }
 
-    private final LoadingCache<String, String> databaseServerContainers =
-            CacheBuilder.newBuilder().build(new CacheLoader<String, String>() {
+    private final LoadingCache<String, ReferenceType> databaseServerContainerReferences =
+            CacheBuilder.newBuilder().build(new CacheLoader<String, ReferenceType>() {
                 @Override
-                public String load(String applicationName) throws Exception {
-                    return createContainerAndGetConnectionString(applicationName);
+                public ReferenceType load(String applicationName) throws Exception {
+                    return createReference(createContainerAndGetConnectionString(applicationName));
                 }
             });
+
+    protected abstract ReferenceType createReference(String connectionString);
+
+    protected String getApplicationUserPassword(String applicationName) {
+        return System.getProperty(APPLICATION_USER_PASSWORD_PROPERTY, DEFAULT_APPLICATION_PASSWORD);
+    }
+
+    protected String getApplicationUserName(String applicationName) {
+        return System.getProperty(APPLICATION_USER_NAME_PROPERTY, DEFAULT_APPLICATION_USER_NAME);
+    }
+
+    protected String getRootPassword(String applicationName) {
+        return System.getProperty(ROOT_PASSWORD_PROPERTY, DEFAULT_ROOT_PASSWORD);
+    }
 
     private String createContainerAndGetConnectionString(String applicationName) throws Exception {
         suppressDockerClientVerboseLogging();
@@ -88,9 +102,9 @@ public class DockerDatabaseServerContainerManager {
         String containerName = "mysql-" + applicationName;
         int sqlServerPort = findFreePort();
 
-        String rootPassword = System.getProperty(ROOT_PASSWORD_PROPERTY, DEFAULT_ROOT_PASSWORD);
-        String applicationUserName = System.getProperty(APPLICATION_USER_NAME_PROPERTY, DEFAULT_APPLICATION_USER_NAME);
-        String applicationUserPassword = System.getProperty(APPLICATION_USER_PASSWORD_PROPERTY, DEFAULT_APPLICATION_PASSWORD);
+        String rootPassword = getRootPassword(applicationName);
+        String applicationUserName = getApplicationUserName(applicationName);
+        String applicationUserPassword = getApplicationUserPassword(applicationName);
 
         DockerUtilities.createMySqlDockerContainerIfNotCreated(dockerClient, imageName, versionTag, containerName, sqlServerPort,
                 rootPassword, applicationUserName, applicationUserPassword);
@@ -121,7 +135,7 @@ public class DockerDatabaseServerContainerManager {
         return connectionString.toString();
     }
 
-    public String getContainerConnectionString(String applicationName) throws ExecutionException {
-        return databaseServerContainers.get(applicationName);
+    public ReferenceType getContainerReference(String applicationName) throws ExecutionException {
+        return databaseServerContainerReferences.get(applicationName);
     }
 }

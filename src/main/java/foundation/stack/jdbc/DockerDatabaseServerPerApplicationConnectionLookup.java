@@ -9,7 +9,14 @@ import java.util.concurrent.ExecutionException;
 public class DockerDatabaseServerPerApplicationConnectionLookup implements ConnectionLookup {
     private static final String BRANCH_DATABASE_NAME = "branch";
 
-    private final DockerDatabaseServerContainerManager containerManager = new DockerDatabaseServerContainerManager();
+    private final DockerDatabaseServerContainerReferenceManager<String> containerManager =
+            new DockerDatabaseServerContainerReferenceManager<String>() {
+                @Override
+                protected String createReference(String connectionString) {
+                    return connectionString;
+                }
+            };
+
     private final MySqlDatabaseManager databaseManager = new MySqlDatabaseManager();
 
     private String appendDatabaseName(String connectionString, String databaseName) {
@@ -25,7 +32,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
     public String find(String query) {
         String applicationName = NameGenerator.generateContextApplicationName();
         try {
-            String containerConnectionString = containerManager.getContainerConnectionString(applicationName);
+            String containerConnectionString = containerManager.getContainerReference(applicationName);
             if (BRANCH_DATABASE_NAME.equals(query)) {
                 String databaseName = databaseManager.getOrCreateBranchDatabase(containerConnectionString, NameGenerator.generateDatabaseName());
                 return appendDatabaseName(containerConnectionString, databaseName);
