@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  */
 public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceType> {
 
-    private static Logger logger = Logger.getLogger(DockerUtilities.class.getName());
+    private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
 
     private static final String MYSQL_IMAGE_NAME_PROPERTY = "MYSQL_IMAGE_NAME";
     private static final String MYSQL_IMAGE_NAME = "mysql";
