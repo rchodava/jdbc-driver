@@ -14,11 +14,15 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
 
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
 public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceType> {
+
+    private static Logger logger = Logger.getLogger(DockerUtilities.class.getName());
+
     private static final String MYSQL_IMAGE_NAME_PROPERTY = "MYSQL_IMAGE_NAME";
     private static final String MYSQL_IMAGE_NAME = "mysql";
 
@@ -48,12 +52,13 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         context.getLogger(PullImageResultCallback.class).setLevel(Level.ERROR);
     }
 
-    private static void waitBrieflyForDatabaseServerConnect(DockerClient dockerClient, int sqlServerPort) throws InterruptedException {
+    private static void waitBrieflyForDatabaseServerConnect(String containerIp, int sqlServerPort) throws InterruptedException {
         int retries = 10;
         boolean connected = false;
         while (!connected) {
-            try (Socket clientConnect = new Socket(dockerClient.getHostIpAddress(), sqlServerPort)) {
+            try (Socket clientConnect = new Socket(containerIp, sqlServerPort)) {
                 connected = true;
+                logger.log(java.util.logging.Level.FINE, "Successfully connected to DB on {0}:{1}", new Object[]{containerIp, sqlServerPort});
             } catch (IOException e) {
                 Thread.sleep(100);
                 if (retries == 0) {
@@ -100,7 +105,15 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         }
 
         String containerName = "mysql-" + applicationName;
-        int sqlServerPort = findFreePort();
+        Integer sqlServerPort = null;
+
+        String containerIp = dockerClient.getHostIpAddress();
+
+        // If no host ip, assume container is not running within host
+        if (containerIp != null) {
+            // Only search for a local free port if running container within host
+            sqlServerPort = findFreePort();
+        }
 
         String rootPassword = getRootPassword(applicationName);
         String applicationUserName = getApplicationUserName(applicationName);
@@ -110,12 +123,17 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
                 rootPassword, applicationUserName, applicationUserPassword);
 
         DockerUtilities.startDockerContainer(dockerClient, containerName);
+
         sqlServerPort = DockerUtilities.findExposedContainerPort(dockerClient, containerName);
 
-        waitBrieflyForDatabaseServerConnect(dockerClient, sqlServerPort);
+        if (containerIp == null) {
+            containerIp = DockerUtilities.getContainerIp(dockerClient, containerName);
+        }
+
+        waitBrieflyForDatabaseServerConnect(containerIp, sqlServerPort);
 
         StringBuilder connectionString = new StringBuilder("jdbc:mysql://");
-        connectionString.append(dockerClient.getHostIpAddress());
+        connectionString.append(containerIp);
         connectionString.append(':');
         connectionString.append(sqlServerPort);
 
