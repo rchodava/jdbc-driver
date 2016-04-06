@@ -40,6 +40,8 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
 
     private static final String DOCKER_HOST_NAME = "stackfoundation";
 
+    private static final String BYPASS_INSTALLATION = "BYPASS_INSTALLATION";
+
     private static int findFreePort() throws IOException {
         try (ServerSocket portSearch = new ServerSocket(0)) {
             return portSearch.getLocalPort();
@@ -95,7 +97,7 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
     private String createContainerAndGetConnectionString(String applicationName) throws Exception {
         suppressDockerClientVerboseLogging();
 
-        DockerClient dockerClient = Bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME);
+        DockerClient dockerClient = Bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
         String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
         String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
 
