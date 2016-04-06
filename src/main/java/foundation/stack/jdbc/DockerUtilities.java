@@ -1,10 +1,15 @@
 package foundation.stack.jdbc;
 
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.ConflictException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.exception.NotModifiedException;
-import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.Image;
+import com.github.dockerjava.api.model.NetworkSettings;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import foundation.stack.docker.DockerClient;
 
@@ -22,7 +27,7 @@ public class DockerUtilities {
     private static final int MYSQL_PORT = 3306;
 
     public static void createMySqlDockerContainerIfNotCreated(
-            DockerClient dockerClient, String imageName, String tag, String containerName, int sqlPort,
+            DockerClient dockerClient, String imageName, String tag, String containerName, Integer sqlPort,
             String rootPassword, String applicationUserName, String applicationUserPassword) {
         try {
             logger.log(Level.FINER, "Trying to create container {0}", containerName);
@@ -48,12 +53,17 @@ public class DockerUtilities {
                 }
             }
 
-            dockerClient.createContainerCmd(imageName + ":" + tag)
+            CreateContainerCmd createContainerCmd = dockerClient.createContainerCmd(imageName + ":" + tag)
                     .withName(containerName)
-                    .withEnv(environmentVariables)
-                    .withExposedPorts(ExposedPort.tcp(sqlPort))
-                    .withPortBindings(new PortBinding(new Ports.Binding(sqlPort), ExposedPort.tcp(MYSQL_PORT)))
-                    .exec();
+                    .withEnv(environmentVariables);
+
+            if (sqlPort != null) {
+                // Don't expose ports nor create bindings unless we can assign an available local port
+                createContainerCmd = createContainerCmd.withExposedPorts(ExposedPort.tcp(sqlPort))
+                        .withPortBindings(new PortBinding(new Ports.Binding(sqlPort), ExposedPort.tcp(MYSQL_PORT)));
+            }
+
+            createContainerCmd.exec();
         } catch (ConflictException e) {
             logger.log(Level.FINER, "Container {0} already exists, continuing", containerName);
         }
@@ -129,5 +139,23 @@ public class DockerUtilities {
             logger.log(Level.FINER, "Found existing container with exposed MySQL port {0}", port);
         }
         return port;
+    }
+
+    public static String getContainerIp(DockerClient dockerClient, String containerName) {
+        String containerIp = null;
+        try {
+            InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerName).exec();
+            NetworkSettings networkSettings = inspectContainerResponse.getNetworkSettings();
+            if (networkSettings != null) {
+                containerIp = networkSettings.getIpAddress();
+            }
+        } catch (NotFoundException e) {
+        }
+
+        if (containerIp != null) {
+            logger.log(Level.FINER, "Found {0} ip for container with name {1}",
+                    new Object[]{containerIp, containerName});
+        }
+        return containerIp;
     }
 }
