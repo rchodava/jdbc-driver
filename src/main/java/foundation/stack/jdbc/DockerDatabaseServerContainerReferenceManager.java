@@ -72,11 +72,11 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         }
     }
 
-    private final LoadingCache<String, ReferenceType> databaseServerContainerReferences =
-            CacheBuilder.newBuilder().build(new CacheLoader<String, ReferenceType>() {
+    private final LoadingCache<ContainerReferenceKey, ReferenceType> databaseServerContainerReferences =
+            CacheBuilder.newBuilder().build(new CacheLoader<ContainerReferenceKey, ReferenceType>() {
                 @Override
-                public ReferenceType load(String applicationName) throws Exception {
-                    return createReference(createContainerAndGetConnectionString(applicationName));
+                public ReferenceType load(ContainerReferenceKey key) throws Exception {
+                    return createReference(createContainerAndGetConnectionString(key.getApplicationName(), key.getProgressMonitor()));
                 }
             });
 
@@ -94,8 +94,11 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         return System.getProperty(ROOT_PASSWORD_PROPERTY, DEFAULT_ROOT_PASSWORD);
     }
 
-    private String createContainerAndGetConnectionString(String applicationName) throws Exception {
+    private String createContainerAndGetConnectionString(String applicationName, ProgressMonitor progressMonitor) throws Exception {
         suppressDockerClientVerboseLogging();
+
+        progressMonitor.workChanged(0, 100);
+        progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_MACHINE_BOOT");
 
         DockerClient dockerClient = Bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
         String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
@@ -103,6 +106,9 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
 
         boolean imageExists = DockerUtilities.doesDockerHostHaveImage(dockerClient, imageName, versionTag);
         if (!imageExists) {
+            progressMonitor.workChanged(45, 100);
+            progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_IMAGE_PULL");
+
             DockerUtilities.pullImageToDockerHost(dockerClient, imageName, versionTag);
         }
 
@@ -121,8 +127,14 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         String applicationUserName = getApplicationUserName(applicationName);
         String applicationUserPassword = getApplicationUserPassword(applicationName);
 
+        progressMonitor.workChanged(75, 100);
+        progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_CONTAINER_CREATE");
+
         DockerUtilities.createMySqlDockerContainerIfNotCreated(dockerClient, imageName, versionTag, containerName, sqlServerPort,
                 rootPassword, applicationUserName, applicationUserPassword);
+
+        progressMonitor.workChanged(85, 100);
+        progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_CONTAINER_START");
 
         DockerUtilities.startDockerContainer(dockerClient, containerName);
 
@@ -131,6 +143,9 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         if (containerIp == null) {
             containerIp = DockerUtilities.getContainerIp(dockerClient, containerName);
         }
+
+        progressMonitor.workChanged(90, 100);
+        progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_DB_CONNECTION");
 
         waitBrieflyForDatabaseServerConnect(containerIp, sqlServerPort);
 
@@ -156,6 +171,43 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
     }
 
     public ReferenceType getContainerReference(String applicationName) throws ExecutionException {
-        return databaseServerContainerReferences.get(applicationName);
+        return getContainerReference(applicationName, null);
+    }
+
+    public ReferenceType getContainerReference(String applicationName, ProgressMonitor progressMonitor) throws ExecutionException {
+        return databaseServerContainerReferences.get(new ContainerReferenceKey(applicationName,
+                progressMonitor != null ? progressMonitor : ProgressMonitor.NULL));
+    }
+
+    private static class ContainerReferenceKey {
+        private final String applicationName;
+        private final ProgressMonitor progressMonitor;
+
+        public ContainerReferenceKey(String applicationName, ProgressMonitor progressMonitor) {
+            this.applicationName = applicationName;
+            this.progressMonitor = progressMonitor;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof ContainerReferenceKey) {
+                return applicationName.equals(((ContainerReferenceKey) obj).applicationName);
+            }
+
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return applicationName.hashCode();
+        }
+
+        public String getApplicationName() {
+            return applicationName;
+        }
+
+        public ProgressMonitor getProgressMonitor() {
+            return progressMonitor;
+        }
     }
 }
