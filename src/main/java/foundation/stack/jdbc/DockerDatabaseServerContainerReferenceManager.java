@@ -97,7 +97,7 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
     private String createContainerAndGetConnectionString(String applicationName, ProgressMonitor progressMonitor) throws Exception {
         suppressDockerClientVerboseLogging();
 
-        progressMonitor.workChanged(0, 100);
+        progressMonitor.workChanged(5, 100);
         progressMonitor.statusChanged("STATUS_LOCAL_DOCKER_MACHINE_BOOT");
 
         DockerClient dockerClient = Bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
