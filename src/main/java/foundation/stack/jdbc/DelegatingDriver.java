@@ -42,7 +42,7 @@ public class DelegatingDriver implements Driver {
     private String findConnectionStringToDelegateTo(String url) {
         logger.log(Level.INFO, "Finding connection string to use for delegating URL {0}", url);
 
-        String query = url.substring(PREFIX_LENGTH);
+        String query = url.substring(PREFIX_LENGTH + 1);
 
         try {
             String connection = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
