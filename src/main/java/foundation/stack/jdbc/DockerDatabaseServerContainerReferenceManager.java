@@ -54,21 +54,24 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         context.getLogger(PullImageResultCallback.class).setLevel(Level.ERROR);
     }
 
-    private static void waitBrieflyForDatabaseServerConnect(String containerIp, int sqlServerPort) throws InterruptedException {
-        int retries = 10;
+    private void waitBrieflyForDatabaseServerConnect(String containerIp, int sqlServerPort) throws InterruptedException {
+        int retries = 25;
         boolean connected = false;
+        logger.log(java.util.logging.Level.INFO, "Trying to connect to DB..");
         while (!connected) {
             try (Socket clientConnect = new Socket(containerIp, sqlServerPort)) {
                 connected = true;
-                logger.log(java.util.logging.Level.FINE, "Successfully connected to DB on {0}:{1}", new Object[]{containerIp, sqlServerPort});
+                logger.log(java.util.logging.Level.INFO, "Successfully connected to DB on {0}:{1} after {2} retries", new Object[]{containerIp, sqlServerPort, (100 - retries)});
             } catch (IOException e) {
-                Thread.sleep(100);
+                Thread.sleep(500);
                 if (retries == 0) {
                     break;
                 }
-
                 retries--;
             }
+        }
+        if (!connected) {
+            logger.log(java.util.logging.Level.INFO, "Could not connect to database!!");
         }
     }
 
@@ -95,6 +98,8 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
     }
 
     private String createContainerAndGetConnectionString(String applicationName, ProgressMonitor progressMonitor) throws Exception {
+        logger.log(java.util.logging.Level.INFO, "Generating container string for application {0}", applicationName);
+
         suppressDockerClientVerboseLogging();
 
         progressMonitor.workChanged(5, 100);
