@@ -55,7 +55,7 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
     }
 
     private void waitBrieflyForDatabaseServerConnect(String containerIp, int sqlServerPort) throws InterruptedException {
-        int retries = 100;
+        int retries = 25;
         boolean connected = false;
         logger.log(java.util.logging.Level.INFO, "Trying to connect to DB..");
         while (!connected) {
@@ -63,7 +63,7 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
                 connected = true;
                 logger.log(java.util.logging.Level.INFO, "Successfully connected to DB on {0}:{1} after {2} retries", new Object[]{containerIp, sqlServerPort, (100 - retries)});
             } catch (IOException e) {
-                Thread.sleep(100);
+                Thread.sleep(500);
                 if (retries == 0) {
                     break;
                 }
