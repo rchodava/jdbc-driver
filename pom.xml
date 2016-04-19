@@ -4,7 +4,7 @@
 
     <groupId>foundation.stack</groupId>
     <artifactId>jdbc-driver</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
     <name>stack.foundation JDBC Driver</name>
     <url>https://github.com/rchodava/jdbc-driver/</url>
@@ -37,7 +37,8 @@
         <connection>scm:git:git@github.com:rchodava/jdbc-driver.git</connection>
         <developerConnection>scm:git:git@github.com:rchodava/jdbc-driver.git</developerConnection>
         <url>git@github.com:rchodava/jdbc-driver.git</url>
-    </scm>
+      <tag>jdbc-driver-0.1.0</tag>
+  </scm>
 
     <distributionManagement>
         <snapshotRepository>
