@@ -93,8 +93,8 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
         String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
         String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
 
-        ContainerDefinition containerDefinition = new ContainerDefinition(imageName, versionTag, new String[0],
-                Collections.emptyMap(), Collections.singletonMap(getPort(), MYSQL_PORT));
+        ContainerDefinition containerDefinition = new ContainerDefinition(imageName, versionTag);
+        containerDefinition.setPortMappings(Collections.singletonMap(getPort(), MYSQL_PORT));
 
         return new ContainerProperties(containerName, getDockerClient().getHostIpAddress(), containerDefinition);
     }
