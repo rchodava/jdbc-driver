@@ -34,9 +34,10 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         boolean connected = false;
         logger.log(java.util.logging.Level.INFO, "Trying to connect to DB..");
         while (!connected) {
-            try (Socket clientConnect = new Socket(containerIp, sqlServerPort)) {
+            try (Socket ignored = new Socket(containerIp, sqlServerPort)) {
                 connected = true;
-                logger.log(java.util.logging.Level.INFO, "Successfully connected to DB on {0}:{1} after {2} retries", new Object[]{containerIp, sqlServerPort, (100 - retries)});
+                logger.log(java.util.logging.Level.INFO, "Successfully connected to DB on {0}:{1} after {2} retries",
+                        new Object[]{containerIp, sqlServerPort, (100 - retries)});
             } catch (IOException e) {
                 Thread.sleep(500);
                 if (retries == 0) {
