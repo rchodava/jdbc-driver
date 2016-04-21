@@ -12,7 +12,7 @@ import java.util.logging.Logger;
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
-public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceType> extends DockerHostContainerManager<ReferenceType>{
+public class DockerDatabaseServerContainerReferenceManager extends DockerHostContainerManager<String> {
 
     private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
 
@@ -51,8 +51,6 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         }
     }
 
-    protected abstract ReferenceType createReference(String connectionString);
-
     protected String getApplicationUserPassword() {
         return System.getProperty(APPLICATION_USER_PASSWORD_PROPERTY, DEFAULT_APPLICATION_PASSWORD);
     }
@@ -65,15 +63,16 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         return System.getProperty(ROOT_PASSWORD_PROPERTY, DEFAULT_ROOT_PASSWORD);
     }
 
-    protected ReferenceType createContainerReference(ContainerProperties containerProperties) {
+    protected String createContainerReference(ContainerProperties containerProperties) {
         int sqlServerPort = containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getKey();
         try {
-            waitBrieflyForDatabaseServerConnect(containerProperties.getHost(), sqlServerPort);
+            waitBrieflyForDatabaseServerConnect(containerProperties.getHostIp(), sqlServerPort);
         } catch (InterruptedException e) {
             logger.log(Level.FINE, "Error testing connection to database server ", e);
             throw new RuntimeException(e);
         }
-        return createReference(buildConnectionString(containerProperties, sqlServerPort));
+
+        return buildConnectionString(containerProperties, sqlServerPort);
     }
 
     private String buildConnectionString(ContainerProperties containerProperties, Integer sqlServerPort) {
@@ -82,7 +81,7 @@ public abstract class DockerDatabaseServerContainerReferenceManager<ReferenceTyp
         String applicationUserPassword = getApplicationUserPassword();
 
         StringBuilder connectionString = new StringBuilder("jdbc:mysql://");
-        connectionString.append(containerProperties.getHost());
+        connectionString.append(containerProperties.getHostIp());
         connectionString.append(':');
         connectionString.append(sqlServerPort);
 

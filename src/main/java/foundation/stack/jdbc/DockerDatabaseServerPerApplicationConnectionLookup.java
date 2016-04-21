@@ -2,13 +2,11 @@ package foundation.stack.jdbc;
 
 import foundation.stack.docker.Bootstrap;
 import foundation.stack.docker.ContainerDefinition;
-import foundation.stack.docker.ContainerProperties;
 import foundation.stack.docker.DockerClient;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,7 +15,7 @@ import java.util.logging.Logger;
  */
 public class DockerDatabaseServerPerApplicationConnectionLookup implements ConnectionLookup {
 
-    private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
+    private static Logger logger = Logger.getLogger(DockerDatabaseServerPerApplicationConnectionLookup.class.getName());
 
     private static final String BRANCH_DATABASE_NAME = "branch";
 
@@ -33,7 +31,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
     private static final String BYPASS_INSTALLATION = "BYPASS_INSTALLATION";
 
     private DockerClient dockerClient;
-    private DockerDatabaseServerContainerReferenceManager<String> containerManager;
+    private DockerDatabaseServerContainerReferenceManager containerManager;
 
     private final MySqlDatabaseManager databaseManager = new MySqlDatabaseManager();
 
@@ -49,15 +47,11 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
         return dockerClient;
     }
 
-    private DockerDatabaseServerContainerReferenceManager<String> getContainerReferenceManager() {
+    private DockerDatabaseServerContainerReferenceManager getContainerReferenceManager() {
         if (this.containerManager == null) {
-            this.containerManager = new DockerDatabaseServerContainerReferenceManager<String>(getDockerClient()) {
-                @Override
-                protected String createReference(String connectionString) {
-                    return connectionString;
-                }
-            };
+            this.containerManager = new DockerDatabaseServerContainerReferenceManager(getDockerClient());
         }
+
         return containerManager;
     }
 
@@ -74,50 +68,27 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
     public String find(String query) {
         String applicationName = NameGenerator.generateContextApplicationName();
         try {
-            String containerConnectionString = getContainerReferenceManager().createContainerReference(buildContainerProperties(applicationName));
+            String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
+            String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
+
+            ContainerDefinition containerDefinition = new ContainerDefinition(imageName, versionTag);
+            containerDefinition.setPortMappings(Collections.singletonMap(MYSQL_PORT, null));
+
+            String containerConnectionString = getContainerReferenceManager()
+                    .getOrCreateContainer(applicationName, new ContainerDefinition(imageName, versionTag));
+
             if (BRANCH_DATABASE_NAME.equals(query)) {
-                String databaseName = databaseManager.getOrCreateBranchDatabase(containerConnectionString, NameGenerator.generateDatabaseName());
+                String databaseName = databaseManager.getOrCreateBranchDatabase(containerConnectionString,
+                        NameGenerator.generateDatabaseName());
                 return appendDatabaseName(containerConnectionString, databaseName);
             } else {
-                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString, NameGenerator.generateDatabaseName());
+                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString,
+                        NameGenerator.generateDatabaseName());
                 return appendDatabaseName(containerConnectionString, databaseName);
             }
-        } catch (SQLException e) {
+        } catch (ExecutionException | SQLException e) {
             logger.log(Level.FINE, "Error getting/creating database for application {0}", applicationName);
             throw new RuntimeException(e);
-        }
-    }
-
-    private ContainerProperties buildContainerProperties(String applicationName) {
-        String containerName = "mysql-" + applicationName;
-        String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
-        String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
-
-        ContainerDefinition containerDefinition = new ContainerDefinition(imageName, versionTag);
-        containerDefinition.setPortMappings(Collections.singletonMap(getPort(), MYSQL_PORT));
-
-        return new ContainerProperties(containerName, getDockerClient().getHostIpAddress(), containerDefinition);
-    }
-
-    private int getPort() {
-        Integer sqlServerPort = null;
-        String containerIp = dockerClient.getHostIpAddress();
-        // If no host ip, assume container is not running within host
-        if (containerIp != null) {
-            // Only search for a local free port if running container within host
-            try {
-                sqlServerPort = findFreePort();
-            } catch (IOException e) {
-                logger.log(Level.FINE, "Error trying to find an available port");
-                throw new RuntimeException(e);
-            }
-        }
-        return sqlServerPort;
-    }
-
-    private static int findFreePort() throws IOException {
-        try (ServerSocket portSearch = new ServerSocket(0)) {
-            return portSearch.getLocalPort();
         }
     }
 }
