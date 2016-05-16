@@ -2,6 +2,7 @@ package foundation.stack.jdbc;
 
 import foundation.stack.docker.Bootstrap;
 import foundation.stack.docker.ContainerDefinition;
+import foundation.stack.docker.DefinitionBuilder;
 import foundation.stack.docker.DockerClient;
 
 import java.sql.SQLException;
@@ -75,7 +76,8 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
             containerDefinition.setPortMappings(Collections.singletonMap(MYSQL_PORT, null));
 
             String containerConnectionString = getContainerReferenceManager()
-                    .getOrCreateContainer(applicationName, new ContainerDefinition(imageName, versionTag));
+                    .getOrCreateContainer(applicationName,
+                            DefinitionBuilder.just(containerDefinition));
 
             if (BRANCH_DATABASE_NAME.equals(query)) {
                 String databaseName = databaseManager.getOrCreateBranchDatabase(containerConnectionString,
