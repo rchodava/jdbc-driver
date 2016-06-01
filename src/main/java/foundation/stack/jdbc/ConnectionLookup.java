@@ -5,4 +5,6 @@ package foundation.stack.jdbc;
  */
 public interface ConnectionLookup {
     String find(String query);
+    String getDefaultUsername();
+    String getDefaultPassword();
 }

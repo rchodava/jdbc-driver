@@ -26,23 +26,23 @@ public class ConnectionLookupRegistry {
         lookups.remove(lookup);
     }
 
-    public String lookupConnection(String query) {
+    public ConnectionLookupResult lookupConnection(String query) {
         for (ConnectionLookup lookup : lookups) {
             String connection = lookup.find(query);
             if (connection != null) {
-                return connection;
+                return new ConnectionLookupResult(lookup, connection);
             }
         }
 
         return lookupUsingConnectionLookupServices(query);
     }
 
-    private String lookupUsingConnectionLookupServices(String query) {
+    private ConnectionLookupResult lookupUsingConnectionLookupServices(String query) {
         ServiceLoader<ConnectionLookup> lookups = ServiceLoader.load(ConnectionLookup.class);
         for (ConnectionLookup lookup : lookups) {
             String connection = lookup.find(query);
             if (connection != null) {
-                return connection;
+                return new ConnectionLookupResult(lookup, connection);
             }
         }
 
