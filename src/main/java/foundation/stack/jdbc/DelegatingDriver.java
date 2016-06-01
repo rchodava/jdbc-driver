@@ -34,20 +34,43 @@ public class DelegatingDriver implements Driver {
         return url.length() > PREFIX_LENGTH && url.startsWith(PREFIX);
     }
 
-    private Connection delegatedConnect(String url, Properties info) throws SQLException {
-        logger.log(Level.INFO, "Attempting to delegate to {0}", url);
-        return DriverManager.getConnection(url, info);
+    private Connection delegatedConnect(ConnectionLookupResult lookupResult, Properties info) throws SQLException {
+        logger.log(Level.INFO, "Attempting to delegate to {0}", lookupResult.getConnectionString());
+
+        fillInDefaultCredentialsIfRequired(lookupResult, info);
+
+        return DriverManager.getConnection(lookupResult.getConnectionString(), info);
     }
 
-    private String findConnectionStringToDelegateTo(String url) {
+    private void fillInDefaultCredentialsIfRequired(ConnectionLookupResult lookupResult, Properties info) {
+        if (!info.containsKey("user")) {
+            ConnectionLookup lookup = lookupResult.getLookup();
+
+            String user = lookup.getDefaultUsername();
+            if (user != null) {
+                info.put("user", user);
+            }
+        }
+
+        if (!info.containsKey("password")) {
+            ConnectionLookup lookup = lookupResult.getLookup();
+
+            String password = lookup.getDefaultPassword();
+            if (password != null) {
+                info.put("password", password);
+            }
+        }
+    }
+
+    private ConnectionLookupResult lookup(String url) {
         logger.log(Level.INFO, "Finding connection string to use for delegating URL {0}", url);
 
         String query = url.substring(PREFIX_LENGTH + 1);
 
         try {
-            String connection = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
-            if (connection != null) {
-                return connection;
+            ConnectionLookupResult lookupResult = ConnectionLookupRegistry.getRegistry().lookupConnection(query);
+            if (lookupResult != null) {
+                return lookupResult;
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error occurred looking up connection to delegate {0} to", url);
@@ -61,9 +84,9 @@ public class DelegatingDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         if (acceptsURL(url)) {
-            String connection = findConnectionStringToDelegateTo(url);
-            if (connection != null) {
-                return delegatedConnect(connection, info);
+            ConnectionLookupResult lookupResult = lookup(url);
+            if (lookupResult != null) {
+                return delegatedConnect(lookupResult, info);
             }
         }
 
@@ -93,8 +116,8 @@ public class DelegatingDriver implements Driver {
     @Override
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
         if (acceptsURL(url)) {
-            String connection = findConnectionStringToDelegateTo(url);
-            if (connection != null) {
+            ConnectionLookupResult lookupResult = lookup(url);
+            if (lookupResult != null) {
                 return DriverManager.getDriver(url).getPropertyInfo(url, info);
             }
         }

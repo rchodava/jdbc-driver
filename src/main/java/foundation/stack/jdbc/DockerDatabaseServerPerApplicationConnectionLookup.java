@@ -66,6 +66,16 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
     }
 
     @Override
+    public String getDefaultPassword() {
+        return null;
+    }
+
+    @Override
+    public String getDefaultUsername() {
+        return null;
+    }
+
+    @Override
     public String find(String query) {
         String applicationName = NameGenerator.generateContextApplicationName();
         try {
