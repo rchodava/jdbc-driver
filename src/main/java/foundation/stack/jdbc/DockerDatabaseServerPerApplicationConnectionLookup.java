@@ -36,10 +36,12 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
 
     private final MySqlDatabaseManager databaseManager = new MySqlDatabaseManager();
 
+    private final Bootstrap bootstrap = new Bootstrap();
+
     private DockerClient getDockerClient() {
         if (dockerClient == null) {
             try {
-                dockerClient = Bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
+                dockerClient = bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
             } catch (Exception e) {
                 logger.log(Level.FINE, "Error building docker client", e);
                 throw new RuntimeException(e);
