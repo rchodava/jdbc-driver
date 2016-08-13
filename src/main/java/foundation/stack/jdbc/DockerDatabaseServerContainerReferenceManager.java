@@ -1,8 +1,8 @@
 package foundation.stack.jdbc;
 
-import foundation.stack.docker.ContainerProperties;
-import foundation.stack.docker.DockerClient;
-import foundation.stack.docker.DockerHostContainerManager;
+import foundation.stack.docker.management.ContainerProperties;
+import foundation.stack.docker.management.DockerClient;
+import foundation.stack.docker.management.ContainerManager;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -12,7 +12,7 @@ import java.util.logging.Logger;
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
-public class DockerDatabaseServerContainerReferenceManager extends DockerHostContainerManager<String> {
+public class DockerDatabaseServerContainerReferenceManager extends ContainerManager<String> {
 
     private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
 
@@ -64,7 +64,7 @@ public class DockerDatabaseServerContainerReferenceManager extends DockerHostCon
     }
 
     protected String createContainerReference(ContainerProperties containerProperties) {
-        int sqlServerPort = containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getKey();
+        int sqlServerPort = Integer.parseInt(containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getKey());
         try {
             waitBrieflyForDatabaseServerConnect(containerProperties.getHostIp(), sqlServerPort);
         } catch (InterruptedException e) {
