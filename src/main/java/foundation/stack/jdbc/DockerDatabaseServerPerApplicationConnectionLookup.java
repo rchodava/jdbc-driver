@@ -1,12 +1,11 @@
 package foundation.stack.jdbc;
 
-import foundation.stack.docker.Bootstrap;
-import foundation.stack.docker.ContainerDefinition;
-import foundation.stack.docker.DefinitionBuilder;
-import foundation.stack.docker.DockerClient;
+import foundation.stack.docker.bootstrap.Bootstrap;
+import foundation.stack.docker.management.ContainerSpecification;
+import foundation.stack.docker.management.SpecificationBuilder;
+import foundation.stack.docker.management.DockerClient;
 
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,7 +40,8 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
     private DockerClient getDockerClient() {
         if (dockerClient == null) {
             try {
-                dockerClient = bootstrap.bootstrapAndConnect(DOCKER_HOST_NAME, System.getenv().containsKey(BYPASS_INSTALLATION));
+                dockerClient = bootstrap.bootstrap(System.getenv().containsKey(BYPASS_INSTALLATION), null)
+                        .connect(DOCKER_HOST_NAME);
             } catch (Exception e) {
                 logger.log(Level.FINE, "Error building docker client", e);
                 throw new RuntimeException(e);
@@ -84,12 +84,12 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
             String imageName = System.getProperty(MYSQL_IMAGE_NAME_PROPERTY, MYSQL_IMAGE_NAME);
             String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
 
-            ContainerDefinition containerDefinition = new ContainerDefinition(imageName, versionTag);
-            containerDefinition.setPortMappings(Collections.singletonMap(MYSQL_PORT, null));
+            ContainerSpecification containerSpecification = new ContainerSpecification(imageName, versionTag);
+            containerSpecification.addPortMapping(MYSQL_PORT, null);
 
             String containerConnectionString = getContainerReferenceManager()
                     .getOrCreateContainer(applicationName,
-                            DefinitionBuilder.just(containerDefinition));
+                            SpecificationBuilder.just(containerSpecification));
 
             if (BRANCH_DATABASE_NAME.equals(query)) {
                 String databaseName = databaseManager.getOrCreateBranchDatabase(containerConnectionString,
