@@ -104,8 +104,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
                         NameGenerator.generateDatabaseName());
                 return appendDatabaseName(containerConnectionString, databaseName);
             } else {
-                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString,
-                        NameGenerator.generateDatabaseName());
+                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString, query);
                 return appendDatabaseName(containerConnectionString, databaseName);
             }
         } catch (ExecutionException | SQLException e) {
