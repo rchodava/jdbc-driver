@@ -16,7 +16,7 @@ public class DockerDatabaseServerContainerReferenceManager extends ContainerMana
 
     private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
 
-    private static final String ROOT_PASSWORD_PROPERTY = "ROOT_PASSWORD";
+    public static final String ROOT_PASSWORD_PROPERTY = "ROOT_PASSWORD";
     private static final String DEFAULT_ROOT_PASSWORD = null;
 
     private static final String APPLICATION_USER_NAME_PROPERTY = "APPLICATION_USER_NAME";
@@ -64,7 +64,7 @@ public class DockerDatabaseServerContainerReferenceManager extends ContainerMana
     }
 
     protected String createContainerReference(ContainerProperties containerProperties) {
-        int sqlServerPort = Integer.parseInt(containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getKey());
+        int sqlServerPort = Integer.parseInt(containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getValue());
         try {
             waitBrieflyForDatabaseServerConnect(containerProperties.getHostIp(), sqlServerPort);
         } catch (InterruptedException e) {

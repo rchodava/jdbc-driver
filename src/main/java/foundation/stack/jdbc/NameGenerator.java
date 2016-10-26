@@ -16,19 +16,12 @@ import java.security.CodeSource;
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
 public class NameGenerator {
-    private static final String JDBC_DRIVER_PACKAGE = DockerDatabaseServerPerApplicationConnectionLookup.class.getPackage().getName();
 
     private static String getCallerClassName() {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         if (stackTrace != null && stackTrace.length > 0) {
-            for (int i = 1; i < stackTrace.length; i++) {
-                StackTraceElement element = stackTrace[i];
-                String className = element.getClassName();
-
-                if (!className.startsWith(JDBC_DRIVER_PACKAGE)) {
-                    return className;
-                }
-            }
+            int index = stackTrace.length == 1 ? 0 : stackTrace.length - 1;
+            return stackTrace[index].getClassName();
         }
 
         return null;
