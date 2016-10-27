@@ -16,7 +16,7 @@ public class DockerDatabaseServerContainerReferenceManager extends ContainerMana
 
     private static Logger logger = Logger.getLogger(DockerDatabaseServerContainerReferenceManager.class.getName());
 
-    public static final String ROOT_PASSWORD_PROPERTY = "ROOT_PASSWORD";
+    static final String ROOT_PASSWORD_PROPERTY = "root.password";
     private static final String DEFAULT_ROOT_PASSWORD = null;
 
     private static final String APPLICATION_USER_NAME_PROPERTY = "APPLICATION_USER_NAME";

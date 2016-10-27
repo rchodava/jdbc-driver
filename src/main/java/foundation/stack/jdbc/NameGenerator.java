@@ -22,12 +22,13 @@ import java.util.logging.Logger;
 public class NameGenerator {
 	private static final Logger logger = Logger.getLogger(DelegatingDriver.class.getName());
 
-	private static final String APPLICATION_NAME = "applicationName";
+	private static final String APPLICATION_NAME = "application.name";
 	private final static String GENERATED_APP_NAME = "APP-NAME-%s";
+	private final static String GIT_EXTENSION = ".git";
 
 	private static File findGitRoot(File file) {
         while (file != null) {
-            File gitDirectory = new File(file, ".git");
+            File gitDirectory = new File(file, GIT_EXTENSION);
             if (gitDirectory.exists() && gitDirectory.isDirectory()) {
                 return gitDirectory;
             }
@@ -163,7 +164,7 @@ public class NameGenerator {
             for (int i = 0; i < segments.length; i++) {
                 String segment = segments[i];
 
-                if (segment.endsWith(".git")) {
+                if (segment.endsWith(GIT_EXTENSION)) {
                     segment = segment.substring(0, segment.length() - 4);
                 }
 
