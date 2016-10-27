@@ -1,14 +1,19 @@
 package foundation.stack.jdbc;
 
+import com.google.common.base.Strings;
 import foundation.stack.docker.bootstrap.Bootstrap;
 import foundation.stack.docker.management.ContainerSpecification;
-import foundation.stack.docker.management.SpecificationBuilder;
 import foundation.stack.docker.management.DockerClient;
+import foundation.stack.docker.management.SpecificationBuilder;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static foundation.stack.jdbc.DockerDatabaseServerContainerReferenceManager.ROOT_PASSWORD_PROPERTY;
 
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
@@ -29,6 +34,8 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
 
     private static final String DOCKER_HOST_NAME = "stackfoundation";
     private static final String BYPASS_INSTALLATION = "BYPASS_INSTALLATION";
+
+    private static final String MYSQL_ROOT_PASSWORD = "MYSQL_ROOT_PASSWORD";
 
     private DockerClient dockerClient;
     private DockerDatabaseServerContainerReferenceManager containerManager;
@@ -86,6 +93,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
 
             ContainerSpecification containerSpecification = new ContainerSpecification(imageName, versionTag);
             containerSpecification.addPortMapping(MYSQL_PORT, null);
+            addRootPasswordEnvironmentVariable(containerSpecification, applicationName);
 
             String containerConnectionString = getContainerReferenceManager()
                     .getOrCreateContainer(applicationName,
@@ -96,13 +104,21 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
                         NameGenerator.generateDatabaseName());
                 return appendDatabaseName(containerConnectionString, databaseName);
             } else {
-                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString,
-                        NameGenerator.generateDatabaseName());
+                String databaseName = databaseManager.getOrCreateNamedDatabase(containerConnectionString, query);
                 return appendDatabaseName(containerConnectionString, databaseName);
             }
         } catch (ExecutionException | SQLException e) {
             logger.log(Level.FINE, "Error getting/creating database for application {0}", applicationName);
             throw new RuntimeException(e);
         }
+    }
+
+    private void addRootPasswordEnvironmentVariable(ContainerSpecification containerSpecification, String applicationName) {
+        String rootPassword = System.getProperty(ROOT_PASSWORD_PROPERTY);
+        if (Strings.isNullOrEmpty(rootPassword)) {
+            rootPassword = applicationName;
+        }
+        containerSpecification.addEnvironmentVariable(MYSQL_ROOT_PASSWORD, rootPassword);
+        System.setProperty(ROOT_PASSWORD_PROPERTY, rootPassword);
     }
 }

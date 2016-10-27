@@ -1,5 +1,8 @@
 package foundation.stack.jdbc;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -18,6 +21,8 @@ public class ConnectionLookupRegistry {
     private ConnectionLookupRegistry() {
     }
 
+    private static final Map<String, ConnectionLookupResult> connectionLookupResults = Collections.synchronizedMap(new HashMap<>());
+
     public void registerLookup(ConnectionLookup lookup) {
         lookups.addIfAbsent(lookup);
     }
@@ -27,10 +32,16 @@ public class ConnectionLookupRegistry {
     }
 
     public ConnectionLookupResult lookupConnection(String query) {
+        ConnectionLookupResult connectionLookupResult = connectionLookupResults.get(query);
+        if (connectionLookupResult != null) {
+            return connectionLookupResult;
+        }
         for (ConnectionLookup lookup : lookups) {
             String connection = lookup.find(query);
             if (connection != null) {
-                return new ConnectionLookupResult(lookup, connection);
+                connectionLookupResult = new ConnectionLookupResult(lookup, connection);
+                connectionLookupResults.putIfAbsent(query, connectionLookupResult);
+                return connectionLookupResult;
             }
         }
 
@@ -42,7 +53,9 @@ public class ConnectionLookupRegistry {
         for (ConnectionLookup lookup : lookups) {
             String connection = lookup.find(query);
             if (connection != null) {
-                return new ConnectionLookupResult(lookup, connection);
+                ConnectionLookupResult connectionLookupResult = new ConnectionLookupResult(lookup, connection);
+                connectionLookupResults.putIfAbsent(query, connectionLookupResult);
+                return connectionLookupResult;
             }
         }
 
