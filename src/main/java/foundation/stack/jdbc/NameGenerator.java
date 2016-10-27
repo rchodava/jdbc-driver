@@ -1,5 +1,6 @@
 package foundation.stack.jdbc;
 
+import com.google.common.base.Strings;
 import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.lib.ConfigConstants;
 import org.eclipse.jgit.lib.Constants;
@@ -11,37 +12,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Ravi Chodavarapu (rchodava@gmail.com)
  */
 public class NameGenerator {
+	private static final Logger logger = Logger.getLogger(DelegatingDriver.class.getName());
 
-    private static String getCallerClassName() {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        if (stackTrace != null && stackTrace.length > 0) {
-            int index = stackTrace.length == 1 ? 0 : stackTrace.length - 1;
-            return stackTrace[index].getClassName();
-        }
+	private static final String APPLICATION_NAME = "applicationName";
+	private final static String GENERATED_APP_NAME = "APP-NAME-%s";
 
-        return null;
-    }
-
-    private static Class<?> getCallerClass() throws ClassNotFoundException {
-        String className = getCallerClassName();
-        if (className != null) {
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            if (classLoader == null) {
-                classLoader = DockerDatabaseServerPerApplicationConnectionLookup.class.getClassLoader();
-            }
-
-            return Class.forName(className, true, classLoader);
-        }
-
-        return null;
-    }
-
-    private static File findGitRoot(File file) {
+	private static File findGitRoot(File file) {
         while (file != null) {
             File gitDirectory = new File(file, ".git");
             if (gitDirectory.exists() && gitDirectory.isDirectory()) {
@@ -102,22 +86,43 @@ public class NameGenerator {
         return null;
     }
 
-    private static File findGitRootOfCallerClass() {
-        Class<?> callerClass = null;
-        try {
-            callerClass = getCallerClass();
-        } catch (ClassNotFoundException e) {
-        }
+    private static File findGitRootInStack() {
+	    File gitRoot = null;
+	    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+	    int index = stackTrace.length;
+	    while (gitRoot == null && index > 1) {
+		    Class<?> callerClass;
+		    try {
+			    callerClass = getCallerClassForName(stackTrace[--index].getClassName());
+			    gitRoot = findGitRootOfClassSource(callerClass);
+		    } catch (ClassNotFoundException e) {
+		    }
+	    }
+	    if (gitRoot != null) {
+		    logger.log(Level.FINE, "Found git root on {0}", gitRoot.getAbsolutePath());
+	    }
+	    else {
+		    logger.log(Level.FINE, "Could not find git root");
+	    }
 
-        if (callerClass != null) {
-            return findGitRootOfClassSource(callerClass);
-        }
-
-        return null;
+	    return gitRoot;
     }
 
-    private static String determineRemoteUri() {
-        File gitRoot = findGitRootOfCallerClass();
+	private static Class<?> getCallerClassForName(String className) throws ClassNotFoundException {
+		if (className != null) {
+			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+			if (classLoader == null) {
+				classLoader = DockerDatabaseServerPerApplicationConnectionLookup.class.getClassLoader();
+			}
+
+			return Class.forName(className, true, classLoader);
+		}
+
+		return null;
+	}
+
+
+	private static String determineRemoteUri(File gitRoot) {
         if (gitRoot != null) {
             try (Repository gitRepository = FileRepositoryBuilder.create(gitRoot)) {
                 return getRemoteUri(gitRepository, getHeadBranch(gitRepository));
@@ -150,23 +155,6 @@ public class NameGenerator {
         return null;
     }
 
-    private static String generateApplicationNameFromCodeLocation() {
-        Class<?> callerClass = null;
-        try {
-            callerClass = getCallerClass();
-        } catch (ClassNotFoundException e) {
-        }
-
-        if (callerClass != null) {
-            String codePath = findCodePathOfClass(callerClass);
-            if (codePath != null) {
-                return new File(codePath).getName();
-            }
-        }
-
-        return null;
-    }
-
     private static String generateApplicationNameFromGitRemoteUri(String gitUri) {
         StringBuilder applicationName = new StringBuilder();
 
@@ -194,28 +182,43 @@ public class NameGenerator {
     }
 
     public static String generateContextApplicationName() {
-        File gitRoot = findGitRootOfCallerClass();
-        if (gitRoot != null) {
-            String remoteUri = determineRemoteUri();
-            String path = URI.create(remoteUri).getPath();
-            if (path != null) {
-                String applicationName = generateApplicationNameFromGitRemoteUri(path);
-                if (applicationName != null) {
-                    return applicationName;
-                }
-            }
-        }
+	    String applicationName = getApplicationName();
 
-        String applicationName = generateApplicationNameFromCodeLocation();
-        if (applicationName != null) {
-            return applicationName;
-        }
+	    if (Strings.isNullOrEmpty(applicationName)) {
+		    File gitRoot = findGitRootInStack();
+		    if (gitRoot != null) {
+			    String remoteUri = determineRemoteUri(gitRoot);
+			    String path = URI.create(remoteUri).getPath();
+			    if (path != null) {
+				    applicationName = generateApplicationNameFromGitRemoteUri(path);
+				    if (applicationName != null) {
+					    logger.log(Level.FINE, "Derived application {0} name from git ", applicationName);
+					    return applicationName;
+				    }
+			    }
+		    }
+	    }
 
-        return getCallerClassName();
+	    if (Strings.isNullOrEmpty(applicationName)) {
+		    String generatedName = generateRandomApplicationName();
+		    logger.log(Level.FINE, "Using generated application name {0}", generatedName);
+		    return generatedName;
+	    }
+
+	    logger.log(Level.FINE, "Using user provided application name {0}", applicationName);
+        return applicationName;
     }
 
-    public static String generateDatabaseName() {
-        File gitRoot = findGitRootOfCallerClass();
+	private static String generateRandomApplicationName() {
+		return String.format(GENERATED_APP_NAME, UUID.randomUUID().toString());
+	}
+
+	private static String getApplicationName() {
+		return System.getProperty(APPLICATION_NAME);
+	}
+
+	public static String generateDatabaseName() {
+        File gitRoot = findGitRootInStack();
         if (gitRoot != null) {
             return determineGitBranch(gitRoot);
         }
