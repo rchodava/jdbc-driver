@@ -64,7 +64,7 @@ public class DockerDatabaseServerContainerReferenceManager extends ContainerMana
     }
 
     protected String createContainerReference(ContainerProperties containerProperties) {
-        int sqlServerPort = Integer.parseInt(containerProperties.getOriginalDefinition().getPortMappings().entrySet().iterator().next().getValue());
+        int sqlServerPort = containerProperties.getPublishedPorts().entrySet().iterator().next().getValue().getPort();
         try {
             waitBrieflyForDatabaseServerConnect(containerProperties.getHostIp(), sqlServerPort);
         } catch (InterruptedException e) {

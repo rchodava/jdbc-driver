@@ -92,7 +92,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
             String versionTag = System.getProperty(MYSQL_IMAGE_TAG_PROPERTY, MYSQL_VERSION);
 
             ContainerSpecification containerSpecification = new ContainerSpecification(imageName, versionTag);
-            containerSpecification.addPortMapping(MYSQL_PORT, getAvailablePort());
+            containerSpecification.addPortMapping(MYSQL_PORT, null);
             addRootPasswordEnvironmentVariable(containerSpecification, applicationName);
 
             String containerConnectionString = getContainerReferenceManager()
@@ -120,14 +120,5 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
         }
         containerSpecification.addEnvironmentVariable(MYSQL_ROOT_PASSWORD, rootPassword);
         System.setProperty(ROOT_PASSWORD_PROPERTY, rootPassword);
-    }
-
-    private Integer getAvailablePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            logger.log(Level.FINE, "Could not get a random available port");
-            throw new RuntimeException(e);
-        }
     }
 }
