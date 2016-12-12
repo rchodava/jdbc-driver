@@ -4,11 +4,9 @@ import com.google.common.base.Strings;
 import foundation.stack.docker.bootstrap.Bootstrap;
 import foundation.stack.docker.management.ContainerSpecification;
 import foundation.stack.docker.management.DockerClient;
-import foundation.stack.docker.management.HostName;
+import foundation.stack.docker.management.HostIdentifier;
 import foundation.stack.docker.management.SpecificationBuilder;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -49,7 +47,7 @@ public class DockerDatabaseServerPerApplicationConnectionLookup implements Conne
         if (dockerClient == null) {
             try {
                 dockerClient = bootstrap.bootstrap(System.getenv().containsKey(BYPASS_INSTALLATION), null)
-                        .connect(new HostName(DOCKER_HOST_NAME));
+                        .connect(HostIdentifier.fromName(DOCKER_HOST_NAME));
             } catch (Exception e) {
                 logger.log(Level.FINE, "Error building docker client", e);
                 throw new RuntimeException(e);
